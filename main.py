@@ -7,100 +7,124 @@ from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtCore import Qt
 import sqlite3
 
+class DatabaseConnection:
+    def __init__(self, database_file='database.db'):
+        self.database_file = database_file
+
+    def connect(self):
+        connection = sqlite3.connect(self.database_file)
+        return connection
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+
+        # Set window title and minimum size
         self.setWindowTitle("Student Management System")
         self.setMinimumSize(600, 400)
 
-        # Menu bar widgets
+        # Create menu bar and add menu items
         file_menu_item = self.menuBar().addMenu("&File")
         help_menu_item = self.menuBar().addMenu("&Help")
         edit_menu_item = self.menuBar().addMenu("&Edit")
 
-        # Sub bar - Add student
+        # Add "Add Student" action to "File" menu and toolbar
         add_student_action = QAction(QIcon("icons/add.png"), "Add Student", self)
         add_student_action.triggered.connect(self.insert)
         file_menu_item.addAction(add_student_action)
 
-        # Sub bar - About
+        # Add "About" action to "Help" menu
         about_action = QAction("About", self)
         help_menu_item.addAction(about_action)
         about_action.triggered.connect(self.about)
 
-        # Sub bar - search
-        search_action = QAction(QIcon("icons/search.png") ,"Search", self)
+        # Add "Search" action to "Edit" menu and toolbar
+        search_action = QAction(QIcon("icons/search.png"), "Search", self)
         edit_menu_item.addAction(search_action)
-        edit_menu_item.triggered.connect(self.search)
+        search_action.triggered.connect(self.search)
 
-        # Table of data
+        # Create a table to display data
         self.table = QTableWidget()
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(("Id", "Name", "Course", "Mobile"))
-        self.table.verticalHeader().setVisible(False)   # removes the numbering of the table, because i have ID in my data
+        self.table.verticalHeader().setVisible(
+            False)  # Remove the numbering of the table, because there's ID in the data
         self.setCentralWidget(self.table)
 
-        # Create toolbar and add toolbar elements
+        # Create a toolbar and add toolbar elements
         toolbar = QToolBar()
-        toolbar.setMovable(True)   # lets the user move the toolbar around if he wants
-        self.addToolBar(toolbar)   # self is the window
+        toolbar.setMovable(True)  # Allow user to move the toolbar around
+        self.addToolBar(toolbar)
 
         toolbar.addAction(add_student_action)
         toolbar.addAction(search_action)
 
-        # Create status bar and add status bar elements
+        # Create a status bar
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
 
-        # Detect a cell click
+        # Connect cellClicked signal to cell_clicked method
         self.table.cellClicked.connect(self.cell_clicked)
 
 
     def cell_clicked(self):
+        # Create "Edit Record" and "Delete Record" buttons and connect them to their respective methods
         edit_button = QPushButton("Edit Record")
         edit_button.clicked.connect(self.edit)
 
         delete_button = QPushButton("Delete Record")
         delete_button.clicked.connect(self.delete)
 
-        # delete the button on the status bar each time we click so it won't duplicate
+        # Delete existing buttons from the status bar to prevent duplicates
         children = self.findChildren(QPushButton)
         if children:
             for child in children:
                 self.status_bar.removeWidget(child)
 
+        # Add "Edit Record" and "Delete Record" buttons to the status bar
         self.status_bar.addWidget(edit_button)
         self.status_bar.addWidget(delete_button)
 
 
     def load_data(self):
-        connection = sqlite3.connect("database.db")
+        # Connect to the database and retrieve data
+        connection = DatabaseConnection().connect()
         result = connection.execute("SELECT * FROM students")
-        self.table.setRowCount(0)   # this prevents duplicate data, this make sure that each time which load the data the row start from 0
+
+        # Clear the table to prevent duplicate data and start adding new rows from index 0
+        self.table.setRowCount(0)
+
+        # Add each row of data to the table
         for row_number, row_data in enumerate(result):
             self.table.insertRow(row_number)
             for column_number, data in enumerate(row_data):
                 self.table.setItem(row_number, column_number, QTableWidgetItem(str(data)))
+
+        # Close the database connection
         connection.close()
 
     def insert(self):
+        # Open the insert dialog
         dialog = InsertDialog()
         dialog.exec()
 
     def search(self):
+        # Open the search dialog
         dialog = SearchDialog()
         dialog.exec()
 
     def edit(self):
+        # Open the edit dialog
         dialog = EditDialog()
         dialog.exec()
 
     def delete(self):
+        # Open the delete dialog
         dialog = DeleteDialog()
         dialog.exec()
 
     def about(self):
+        # Open the about dialog
         dialog = AboutDialog()
         dialog.exec()
 
@@ -161,7 +185,7 @@ class EditDialog(QDialog):
         self.setLayout(layout)
 
     def update_student(self):
-        connection = sqlite3.connect("database.db")
+        connection = DatabaseConnection().connect()
         cursor = connection.cursor()
         cursor.execute("UPDATE students SET name = ?, course = ?, mobile =? WHERE id = ?",
                        (self.student_name.text(),
@@ -178,34 +202,49 @@ class DeleteDialog(QDialog):
         super().__init__()
         self.setWindowTitle("Delete Student Data")
 
+        # Get the index of the selected row
         self.index = main_window.table.currentRow()
+
+        # Get the name of the selected student
         student_name = main_window.table.item(self.index, 1).text()
 
         layout = QGridLayout()
+
+        # Add a confirmation message
         confirmation = QLabel(f'Are you sure you want to delete "{student_name}" account?')
+        layout.addWidget(confirmation, 0, 0, 1, 2)
+
+        # Add "Yes" and "No" buttons
         yes = QPushButton("Yes")
         no = QPushButton("No")
-        layout.addWidget(confirmation, 0, 0, 1, 2)
         layout.addWidget(yes, 1, 0)
         layout.addWidget(no, 1, 1)
+
         self.setLayout(layout)
 
+        # Connect the "Yes" button to the delete_student method
         yes.clicked.connect(self.delete_student)
 
+
     def delete_student(self):
-        # Get id from selected row
+        # Get the id of the selected student
         student_id = main_window.table.item(self.index, 0).text()
 
-        connection = sqlite3.connect("database.db")
+        # Connect to the database and execute the delete query
+        connection = DatabaseConnection().connect()
         cursor = connection.cursor()
-        cursor.execute("DELETE from students WHERE id = ?", (student_id, ))
+        cursor.execute("DELETE from students WHERE id = ?", (student_id,))
         connection.commit()
         cursor.close()
         connection.close()
+
+        # Reload the data in the main window table
         main_window.load_data()
 
+        # Close the dialog box
         self.close()
 
+        # Display a success message using QMessageBox
         confirmation_deleted = QMessageBox()
         confirmation_deleted.setWindowTitle("Success")
         confirmation_deleted.setText("The record was deleted successfully!")
@@ -244,18 +283,24 @@ class InsertDialog(QDialog):
         self.setLayout(layout)
 
     def add_student(self):
+        # Get values entered by user
         name = self.student_name.text()
         course = self.course.itemText(self.course.currentIndex())
         mobile = self.mobile.text()
-        connection = sqlite3.connect("database.db")
+
+        # Connect to database and execute SQL query to insert new student data
+        connection = DatabaseConnection().connect()
         cursor = connection.cursor()
         cursor.execute("INSERT INTO students (name, course, mobile) VALUES (?, ?, ?)",
                        (name, course, mobile))
 
+        # Commit the changes and close the connection to the database
         connection.commit()
         cursor.close()
         connection.close()
-        main_window.load_data()   # refreshes the window
+
+        # Refresh the data displayed in the main window to show the new student added
+        main_window.load_data()
 
 class SearchDialog(QDialog):
     def __init__(self):
@@ -279,11 +324,12 @@ class SearchDialog(QDialog):
         self.setLayout(layout)
 
     def search(self):
-        name = self.student_name.text()   # grabs the name that the user entered
-        connection = sqlite3.connect("database.db")   # connect to the database
+        name = self.student_name.text()  # grabs the name that the user entered
+        connection = DatabaseConnection().connect()  # connect to the database
         cursor = connection.cursor()
-        result = cursor.execute("SELECT * FROM students WHERE name = ?", (name,))   # we select all the rows where the name is equal to the name
-        rows = list(result)   # the result is a generator, so we convert them into a list
+        result = cursor.execute("SELECT * FROM students WHERE name = ?",
+                                (name,))  # we select all the rows where the name is equal to the name
+        rows = list(result)  # the result is a generator, so we convert them into a list
         items = main_window.table.findItems(name, Qt.MatchFlag.MatchFixedString)
         for item in items:
             main_window.table.item(item.row(), 1).setSelected(True)
