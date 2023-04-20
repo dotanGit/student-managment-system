@@ -7,6 +7,7 @@ from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtCore import Qt
 import sqlite3
 
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -18,14 +19,17 @@ class MainWindow(QMainWindow):
         help_menu_item = self.menuBar().addMenu("&Help")
         edit_menu_item = self.menuBar().addMenu("&Edit")
 
-        # Sub bar
+        # Sub bar - Add student
         add_student_action = QAction(QIcon("icons/add.png"), "Add Student", self)
         add_student_action.triggered.connect(self.insert)
         file_menu_item.addAction(add_student_action)
 
+        # Sub bar - About
         about_action = QAction("About", self)
         help_menu_item.addAction(about_action)
+        about_action.triggered.connect(self.about)
 
+        # Sub bar - search
         search_action = QAction(QIcon("icons/search.png") ,"Search", self)
         edit_menu_item.addAction(search_action)
         edit_menu_item.triggered.connect(self.search)
@@ -95,6 +99,24 @@ class MainWindow(QMainWindow):
     def delete(self):
         dialog = DeleteDialog()
         dialog.exec()
+
+    def about(self):
+        dialog = AboutDialog()
+        dialog.exec()
+
+class AboutDialog(QMessageBox):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("About")
+        content = """
+        About This App
+        ______________
+        
+        This app was created as part of my projects portfolio, 
+        this is simple student data base structure which is 
+        user friendly to manage and use
+        """
+        self.setText(content)
 
 class EditDialog(QDialog):
     def __init__(self):
@@ -188,7 +210,6 @@ class DeleteDialog(QDialog):
         confirmation_deleted.setWindowTitle("Success")
         confirmation_deleted.setText("The record was deleted successfully!")
         confirmation_deleted.exec()
-
 
 class InsertDialog(QDialog):
     def __init__(self):
