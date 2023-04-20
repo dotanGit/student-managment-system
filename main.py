@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import QApplication, QVBoxLayout, QLabel, \
      QWidget, QGridLayout, QLineEdit, QPushButton, QMainWindow, \
      QTableWidget, QTableWidgetItem, QDialog, QComboBox
 from PyQt6.QtGui import QAction
+from PyQt6.QtCore import Qt
 import sqlite3
 
 class MainWindow(QMainWindow):
@@ -13,6 +14,7 @@ class MainWindow(QMainWindow):
         # Menu bar widgets
         file_menu_item = self.menuBar().addMenu("&File")
         help_menu_item = self.menuBar().addMenu("&Help")
+        edit_menu_item = self.menuBar().addMenu("&Edit")
 
         # Sub bar
         add_student_action = QAction("Add Student", self)
@@ -21,6 +23,10 @@ class MainWindow(QMainWindow):
 
         about_action = QAction("About", self)
         help_menu_item.addAction(about_action)
+
+        search_action = QAction("Search", self)
+        edit_menu_item.addAction(search_action)
+        edit_menu_item.triggered.connect(self.search)
 
         # Table of data
         self.table = QTableWidget()
@@ -42,6 +48,10 @@ class MainWindow(QMainWindow):
 
     def insert(self):
         dialog = InsertDialog()
+        dialog.exec()
+
+    def search(self):
+        dialog = SearchDialog()
         dialog.exec()
 
 
@@ -90,6 +100,40 @@ class InsertDialog(QDialog):
         cursor.close()
         connection.close()
         main_window.load_data()   # refreshes the window
+
+class SearchDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        # Set Window Title and Size
+        self.setWindowTitle("Search Student")
+        self.setFixedWidth(300)
+        self.setFixedHeight(300)
+
+        # Create Layout and input widgets
+        layout = QVBoxLayout()
+        self.student_name = QLineEdit()
+        self.student_name.setPlaceholderText("Name")
+        layout.addWidget(self.student_name)
+
+        # Add submit button
+        button = QPushButton("Search")
+        button.clicked.connect(self.search)
+        layout.addWidget(button)
+
+        self.setLayout(layout)
+
+    def search(self):
+        name = self.student_name.text()   # grabs the name that the user entered
+        connection = sqlite3.connect("database.db")   # connect to the database
+        cursor = connection.cursor()
+        result = cursor.execute("SELECT * FROM students WHERE name = ?", (name,))   # we select all the rows where the name is equal to the name
+        rows = list(result)   # the result is a generator, so we convert them into a list
+        items = main_window.table.findItems(name, Qt.MatchFlag.MatchFixedString)
+        for item in items:
+            main_window.table.item(item.row(), 1).setSelected(True)
+
+        cursor.close()
+        connection.close()
 
 app = QApplication(sys.argv)
 main_window = MainWindow()
